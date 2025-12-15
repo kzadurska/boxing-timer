@@ -15,7 +15,7 @@
 }
 
 .App.phase-fight {
-  background: linear-gradient(135deg, #22c1a9ff 0%, #19a4a2ff 100%);
+  background: linear-gradient(135deg, #168473ff 0%, #135554ff 100%);
 }
 
 .App.phase-break {
@@ -78,10 +78,6 @@
   font-size: 1.5rem;
   color: #333;
   font-weight: 700;
-}
-
-.timer-display {
-  margin-bottom: 1.5rem;
 }
 
 .timer-round {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 function formatTime(seconds) {
@@ -140,7 +140,7 @@ function App() {
         <section className="timer-container">
           {!showSettings ? (
             <>
-              <div className="timer-display">
+              <div>
                 <div className="timer-round">{displayRound}</div>
                 <div className="timer-time">{displayTime}</div>
                 <div className="timer-phase">{displayPhase}</div>
