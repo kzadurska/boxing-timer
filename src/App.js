@@ -20,7 +20,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   // Timer state
-  const [phase, setPhase] = useState('warmup'); // 'warmup', 'round', 'break'
+  const [phase, setPhase] = useState('warmup'); // 'warmup', 'fight', 'break'
   const [currentRound, setCurrentRound] = useState(1);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
@@ -38,7 +38,7 @@ function App() {
   }, [currentRound]);  // Calculate duration based on phase
   const getPhaseDuration = () => {
     if (phase === 'warmup') return 5;
-    if (phase === 'round') return settings.roundDuration;
+    if (phase === 'fight') return settings.roundDuration;
     if (phase === 'break') return settings.breakDuration;
     return 0;
   };
@@ -56,7 +56,7 @@ function App() {
 
         const currentDuration = currentPhase === 'warmup'
           ? 5
-          : currentPhase === 'round'
+          : currentPhase === 'fight'
           ? settings.roundDuration
           : currentPhase === 'break'
           ? settings.breakDuration
@@ -66,9 +66,9 @@ function App() {
         if (next > currentDuration) {
           // Transition to next phase
           if (currentPhase === 'warmup') {
-            setPhase('round');
+            setPhase('fight');
             return 0;
-          } else if (currentPhase === 'round') {
+          } else if (currentPhase === 'fight') {
             if (currentRoundRef.current < settings.numRounds) {
               setPhase('break');
               return 0;
@@ -81,7 +81,7 @@ function App() {
             }
           } else if (currentPhase === 'break') {
             setCurrentRound((prev) => prev + 1);
-            setPhase('round');
+            setPhase('fight');
             return 0;
           }
           return 0;
@@ -124,11 +124,12 @@ function App() {
   };
 
   const displayTime = formatTime(Math.max(0, Math.floor(phaseDuration - elapsedSeconds)));
-  const displayPhase = phase === 'warmup' ? 'Warm-up' : phase === 'round' ? `Round ${currentRound}/${settings.numRounds}` : phase === 'break' ? 'Break' : 'Ready';
+  const displayRound = `Round ${currentRound}/${settings.numRounds}`;
+  const displayPhase = phase === 'warmup' ? 'Warm-up' : phase === 'fight' ? 'Fight' : phase === 'break' ? 'Break' : 'Ready';
 
   const getPhaseClassName = () => {
     if (phase === 'warmup') return 'phase-warmup';
-    if (phase === 'round') return 'phase-round';
+    if (phase === 'fight') return 'phase-fight';
     if (phase === 'break') return 'phase-break';
     return '';
   };
@@ -140,30 +141,9 @@ function App() {
           {!showSettings ? (
             <>
               <div className="timer-display">
-                <div className="timer-phase">{displayPhase}</div>
+                <div className="timer-round">{displayRound}</div>
                 <div className="timer-time">{displayTime}</div>
-              </div>
-
-              <div className="controls">
-                {phase === 'warmup' && isPaused ? (
-                  <>
-                    <button className="btn btn-start" onClick={handleStart}>
-                      Start
-                    </button>
-                    <button className="btn btn-settings" onClick={() => setShowSettings(true)}>
-                      Settings
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button className="btn btn-pause" onClick={handlePause}>
-                      {isPaused ? 'Resume' : 'Pause'}
-                    </button>
-                    <button className="btn btn-reset" onClick={handleReset}>
-                      Reset
-                    </button>
-                  </>
-                )}
+                <div className="timer-phase">{displayPhase}</div>
               </div>
             </>
           ) : (
@@ -239,6 +219,51 @@ function App() {
             </>
           )}
         </section>
+
+        {!showSettings && (
+          <section className="controls-card">
+            <div className="controls">
+              {phase === 'warmup' && isPaused ? (
+                <>
+                  <button className="btn btn-start" onClick={handleStart}>
+                    Start
+                  </button>
+                  <button className="btn btn-settings" onClick={() => setShowSettings(true)}>
+                    Settings
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-pause" onClick={handlePause}>
+                    {isPaused ? 'Resume' : 'Pause'}
+                  </button>
+                  <button className="btn btn-reset" onClick={handleReset}>
+                    Reset
+                  </button>
+                </>
+              )}
+            </div>
+          </section>
+        )}
+
+        {!showSettings && (
+          <section className="info-card">
+            <div className="info-grid">
+              <div className="info-item">
+                <div className="info-label">Sets</div>
+                <div className="info-value">{settings.numRounds}</div>
+              </div>
+              <div className="info-item">
+                <div className="info-label">Fight</div>
+                <div className="info-value">{settings.roundDuration}s</div>
+              </div>
+              <div className="info-item">
+                <div className="info-label">Rest</div>
+                <div className="info-value">{settings.breakDuration}s</div>
+              </div>
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

@@ -14,8 +14,8 @@
   background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
 }
 
-.App.phase-round {
-  background: linear-gradient(135deg, #5cc122ff 0%, #4ca419ff 100%);
+.App.phase-fight {
+  background: linear-gradient(135deg, #22c1a9ff 0%, #19a4a2ff 100%);
 }
 
 .App.phase-break {
@@ -36,15 +36,68 @@
   text-align: center;
 }
 
+.controls-card {
+  background: white;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  margin-top: 1rem;
+}
+
+.info-card {
+  background: white;
+  border-radius: 20px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  margin-top: 1rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  text-align: center;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.info-label {
+  font-size: 0.8rem;
+  color: #666;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.info-value {
+  font-size: 1.5rem;
+  color: #333;
+  font-weight: 700;
+}
+
 .timer-display {
   margin-bottom: 1.5rem;
 }
 
-.timer-phase {
-  font-size: 1rem;
+.timer-round {
+  font-size: 1.2rem;
   color: #000;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 0.5rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.timer-phase {
+  font-size: 0.9rem;
+  color: #666;
+  font-weight: 600;
+  margin-top: 0.5rem;
   letter-spacing: 1px;
   text-transform: uppercase;
 }
@@ -73,7 +126,7 @@
   cursor: pointer;
   transition: all 0.3s ease;
   min-height: 44px;
-  min-width: auto;
+  width: 140px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -194,6 +247,6 @@
   .btn {
     padding: 0.8rem 2rem;
     font-size: 1rem;
-    min-width: 120px;
+    width: 160px;
   }
 }
