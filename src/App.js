@@ -10,9 +10,9 @@ function formatTime(seconds) {
 function App() {
   // Settings state
   const [settings, setSettings] = useState({
-    numRounds: 6,
-    roundDuration: 30,
-    breakDuration: 10,
+    numRounds: 2,
+    roundDuration: 5,
+    breakDuration: 2,
     warningSignalRound: 10,
     warningSignalBreak: 5,
   });
@@ -20,13 +20,13 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
 
   // Timer state
-  const [phase, setPhase] = useState('idle'); // 'idle', 'warmup', 'round', 'break', 'completed'
+  const [phase, setPhase] = useState('warmup'); // 'warmup', 'round', 'break'
   const [currentRound, setCurrentRound] = useState(1);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
 
   // Ref to track current values for the interval
-  const phaseRef = useRef('idle');
+  const phaseRef = useRef('warmup');
   const currentRoundRef = useRef(1);
 
   useEffect(() => {
@@ -54,10 +54,6 @@ function App() {
         const next = prev + 1; // Increment by 1 second since interval is 1000ms
         const currentPhase = phaseRef.current;
 
-        if (currentPhase === 'idle' || currentPhase === 'completed') {
-          return prev;
-        }
-
         const currentDuration = currentPhase === 'warmup'
           ? 5
           : currentPhase === 'round'
@@ -67,7 +63,7 @@ function App() {
           : 0;
 
         // Check if phase is complete (countdown reaches zero)
-        if (next >= currentDuration) {
+        if (next > currentDuration) {
           // Transition to next phase
           if (currentPhase === 'warmup') {
             setPhase('round');
@@ -77,7 +73,10 @@ function App() {
               setPhase('break');
               return 0;
             } else {
-              setPhase('completed');
+              // Loop back to warmup after last round
+              setCurrentRound(1);
+              setPhase('warmup');
+              setIsPaused(true);
               return 0;
             }
           } else if (currentPhase === 'break') {
@@ -108,10 +107,10 @@ function App() {
   };
 
   const handleReset = () => {
-    setPhase('idle');
+    setPhase('warmup');
     setCurrentRound(1);
     setElapsedSeconds(0);
-    setIsPaused(false);
+    setIsPaused(true);
   };
 
   const handleSettingChange = (key, value) => {
@@ -127,8 +126,15 @@ function App() {
   const displayTime = formatTime(Math.max(0, Math.floor(phaseDuration - elapsedSeconds)));
   const displayPhase = phase === 'warmup' ? 'Warm-up' : phase === 'round' ? `Round ${currentRound}/${settings.numRounds}` : phase === 'break' ? 'Break' : 'Ready';
 
+  const getPhaseClassName = () => {
+    if (phase === 'warmup') return 'phase-warmup';
+    if (phase === 'round') return 'phase-round';
+    if (phase === 'break') return 'phase-break';
+    return '';
+  };
+
   return (
-    <div className="App">
+    <div className={`App ${getPhaseClassName()}`}>
       <main className="App-main">
         <section className="timer-container">
           {!showSettings ? (
@@ -139,19 +145,10 @@ function App() {
               </div>
 
               <div className="controls">
-                {phase === 'idle' ? (
+                {phase === 'warmup' && isPaused ? (
                   <>
                     <button className="btn btn-start" onClick={handleStart}>
                       Start
-                    </button>
-                    <button className="btn btn-settings" onClick={() => setShowSettings(true)}>
-                      Settings
-                    </button>
-                  </>
-                ) : phase === 'completed' ? (
-                  <>
-                    <button className="btn btn-start" onClick={handleStart}>
-                      Start Again
                     </button>
                     <button className="btn btn-settings" onClick={() => setShowSettings(true)}>
                       Settings
