@@ -24,10 +24,12 @@ function App() {
   const [currentRound, setCurrentRound] = useState(1);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
+  const [shouldShake, setShouldShake] = useState(false);
 
   // Ref to track current values for the interval
   const phaseRef = useRef('warmup');
   const currentRoundRef = useRef(1);
+  const hasShaken = useRef(false);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -44,6 +46,30 @@ function App() {
   };
 
   const phaseDuration = getPhaseDuration();
+
+  // Check for warning signal and trigger shake animation
+  useEffect(() => {
+    const timeRemaining = phaseDuration - elapsedSeconds;
+    const warningTime = phase === 'fight' ? settings.warningSignalRound : 
+                        phase === 'break' ? settings.warningSignalBreak : 
+                        0;
+
+    // Trigger shake when we hit the warning time (not before or after)
+    if (timeRemaining === warningTime && warningTime > 0 && !hasShaken.current && !isPaused) {
+      setShouldShake(true);
+      hasShaken.current = true;
+      
+      // Remove shake class after animation completes
+      setTimeout(() => {
+        setShouldShake(false);
+      }, 250);
+    }
+  }, [elapsedSeconds, phase, phaseDuration, settings.warningSignalRound, settings.warningSignalBreak, isPaused]);
+
+  // Reset shake flag when phase changes
+  useEffect(() => {
+    hasShaken.current = false;
+  }, [phase]);
 
   // Timer effect - use single effect that doesn't depend on phase
   useEffect(() => {
@@ -100,6 +126,7 @@ function App() {
     setCurrentRound(1);
     setElapsedSeconds(0);
     setIsPaused(false);
+    hasShaken.current = false;
   };
 
   const handlePause = () => {
@@ -111,6 +138,7 @@ function App() {
     setCurrentRound(1);
     setElapsedSeconds(0);
     setIsPaused(true);
+    hasShaken.current = false;
   };
 
   const handleSettingChange = (key, value) => {
@@ -168,7 +196,7 @@ function App() {
   return (
     <div className={`App ${getPhaseClassName()}`}>
       <main className="App-main">
-        <section className={`timer-container ${showSettings ? 'settings-mode' : ''}`}>
+        <section className={`timer-container ${showSettings ? 'settings-mode' : ''} ${shouldShake ? 'shake' : ''}`}>
           {!showSettings ? (
             <>
               <div>
