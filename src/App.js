@@ -11,10 +11,10 @@ function App() {
   // Settings state
   const [settings, setSettings] = useState({
     numRounds: 2,
-    roundDuration: 5,
-    breakDuration: 2,
-    warningSignalRound: 10,
-    warningSignalBreak: 5,
+    roundDuration: 8,
+    breakDuration: 4,
+    warningSignalRound: 2,
+    warningSignalBreak: 2,
   });
 
   const [showSettings, setShowSettings] = useState(false);
@@ -114,18 +114,49 @@ function App() {
   };
 
   const handleSettingChange = (key, value) => {
-    const numValue = parseInt(value, 10);
-    if (!isNaN(numValue) && numValue > 0) {
+    // Allow empty string for editing
+    if (value === '') {
       setSettings((prev) => ({
         ...prev,
-        [key]: numValue,
+        [key]: '',
       }));
+      return;
+    }
+
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue) && numValue >= 0) {
+      setSettings((prev) => {
+        const newSettings = {
+          ...prev,
+          [key]: numValue,
+        };
+
+        // Auto-adjust warning signals when durations are reduced
+        if (key === 'roundDuration' && newSettings.warningSignalRound >= numValue) {
+          newSettings.warningSignalRound = Math.max(0, numValue - 1);
+        }
+        if (key === 'breakDuration' && newSettings.warningSignalBreak >= numValue) {
+          newSettings.warningSignalBreak = Math.max(0, numValue - 1);
+        }
+
+        return newSettings;
+      });
     }
   };
 
   const displayTime = formatTime(Math.max(0, Math.floor(phaseDuration - elapsedSeconds)));
   const displayRound = `Round ${currentRound}/${settings.numRounds}`;
   const displayPhase = phase === 'warmup' ? 'Warm-up' : phase === 'fight' ? 'Fight' : phase === 'break' ? 'Break' : 'Ready';
+
+  // Check if settings have validation errors
+  const hasValidationErrors = 
+    settings.warningSignalRound >= settings.roundDuration ||
+    settings.warningSignalBreak >= settings.breakDuration ||
+    settings.warningSignalRound === '' ||
+    settings.warningSignalBreak === '' ||
+    settings.roundDuration === '' ||
+    settings.breakDuration === '' ||
+    settings.numRounds === '';
 
   const getPhaseClassName = () => {
     if (phase === 'warmup') return 'phase-warmup';
@@ -192,10 +223,13 @@ function App() {
                     id="warningSignalRound"
                     type="number"
                     min="0"
-                    max={settings.roundDuration - 1}
                     value={settings.warningSignalRound}
                     onChange={(e) => handleSettingChange('warningSignalRound', e.target.value)}
+                    className={settings.warningSignalRound !== '' && settings.warningSignalRound >= settings.roundDuration ? 'invalid' : ''}
                   />
+                  {settings.warningSignalRound !== '' && settings.warningSignalRound >= settings.roundDuration && (
+                    <span className="error-text">Must be less than round duration ({settings.roundDuration}s)</span>
+                  )}
                 </div>
 
                 <div className="setting-input">
@@ -204,15 +238,22 @@ function App() {
                     id="warningSignalBreak"
                     type="number"
                     min="0"
-                    max={settings.breakDuration > 0 ? settings.breakDuration - 1 : 0}
                     value={settings.warningSignalBreak}
                     onChange={(e) => handleSettingChange('warningSignalBreak', e.target.value)}
+                    className={settings.warningSignalBreak !== '' && settings.warningSignalBreak >= settings.breakDuration ? 'invalid' : ''}
                   />
+                  {settings.warningSignalBreak !== '' && settings.warningSignalBreak >= settings.breakDuration && (
+                    <span className="error-text">Must be less than break duration ({settings.breakDuration}s)</span>
+                  )}
                 </div>
               </div>
 
               <div className="controls">
-                <button className="btn btn-done" onClick={() => setShowSettings(false)}>
+                <button 
+                  className="btn btn-done" 
+                  onClick={() => setShowSettings(false)}
+                  disabled={hasValidationErrors}
+                >
                   Done
                 </button>
               </div>

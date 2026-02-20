@@ -4,26 +4,26 @@
   --color-red-mid: #cf4523;
   --color-red-end: #e40202;
   --gradient-red: linear-gradient(180deg, var(--color-red-start) 0%, var(--color-red-mid) 50%, var(--color-red-end) 100%);
-  
+
   --color-green-start: rgb(0, 180, 51);
   --color-green-mid: rgb(8, 148, 43);
   --color-green-end: rgb(19, 85, 35);
   --gradient-green: linear-gradient(180deg, var(--color-green-start) 0%, var(--color-green-mid) 40%, var(--color-green-end) 100%);
-  
+
   --color-purple-start: #9c27b0;
   --color-purple-end: #631486;
   --gradient-purple: linear-gradient(0deg, var(--color-purple-start) 0%, var(--color-purple-end) 100%);
-  
+
   --color-gray: #666;
   --color-gray-light: rgba(102, 102, 102, 0.3);
   --color-black: #000;
   --color-white: #fff;
-  
+
   /* Shadow colors with opacity */
   --shadow-purple: rgba(156, 39, 176, 0.4);
   --shadow-red: rgba(255, 81, 0, 0.4);
   --shadow-gray: rgba(102, 102, 102, 0.2);
-  
+
   /* Hover background colors */
   --hover-gray-bg: rgba(102, 102, 102, 0.1);
   --focus-purple: rgba(156, 39, 176, 0.1);
@@ -226,14 +226,19 @@
   flex: 1;
 }
 
-.btn-done:hover {
+.btn-done:hover:not(:disabled) {
   background: rgba(0, 0, 0, 0.05);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.btn-done:active {
+.btn-done:active:not(:disabled) {
   transform: translateY(0);
+}
+
+.btn-done:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 .settings-title {
@@ -269,10 +274,25 @@
   transition: border-color 0.3s ease;
 }
 
+.setting-input input.invalid {
+  border-color: var(--color-red-end);
+}
+
 .setting-input input:focus {
   outline: none;
   border-color: var(--color-purple-start);
   box-shadow: 0 0 0 3px var(--focus-purple);
+}
+
+.setting-input input.invalid:focus {
+  border-color: var(--color-red-end);
+  box-shadow: 0 0 0 3px rgba(228, 2, 2, 0.1);
+}
+
+.error-text {
+  font-size: 0.75rem;
+  color: var(--color-red-end);
+  font-weight: 500;
 }
 
 /* Responsive design */
