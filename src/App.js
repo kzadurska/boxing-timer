@@ -221,6 +221,25 @@ function App() {
         </section>
 
         {!showSettings && (
+          <section className="info-card">
+            <div className="info-grid">
+              <div className="info-item">
+                <div className="info-label">Sets</div>
+                <div className="info-value">{settings.numRounds}</div>
+              </div>
+              <div className="info-item">
+                <div className="info-label">Fight</div>
+                <div className="info-value">{settings.roundDuration}s</div>
+              </div>
+              <div className="info-item">
+                <div className="info-label">Rest</div>
+                <div className="info-value">{settings.breakDuration}s</div>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {!showSettings && (
           <section className="controls-card">
             <div className="controls">
               {phase === 'warmup' && isPaused ? (
@@ -242,25 +261,6 @@ function App() {
                   </button>
                 </>
               )}
-            </div>
-          </section>
-        )}
-
-        {!showSettings && (
-          <section className="info-card">
-            <div className="info-grid">
-              <div className="info-item">
-                <div className="info-label">Sets</div>
-                <div className="info-value">{settings.numRounds}</div>
-              </div>
-              <div className="info-item">
-                <div className="info-label">Fight</div>
-                <div className="info-value">{settings.roundDuration}s</div>
-              </div>
-              <div className="info-item">
-                <div className="info-label">Rest</div>
-                <div className="info-value">{settings.breakDuration}s</div>
-              </div>
             </div>
           </section>
         )}
