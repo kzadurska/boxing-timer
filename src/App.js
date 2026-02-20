@@ -30,6 +30,29 @@ function App() {
   const phaseRef = useRef('warmup');
   const currentRoundRef = useRef(1);
   const hasShaken = useRef(false);
+  const lastPhaseRef = useRef('warmup');
+
+  // Audio refs
+  const boxSoundRef = useRef(null);
+  const bellSoundRef = useRef(null);
+
+  // Initialize audio on mount
+  useEffect(() => {
+    boxSoundRef.current = new Audio('/box.mp3');
+    bellSoundRef.current = new Audio('/single-bell.mp3');
+
+    return () => {
+      // Cleanup audio on unmount
+      if (boxSoundRef.current) {
+        boxSoundRef.current.pause();
+        boxSoundRef.current = null;
+      }
+      if (bellSoundRef.current) {
+        bellSoundRef.current.pause();
+        bellSoundRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     phaseRef.current = phase;
@@ -59,10 +82,18 @@ function App() {
       setShouldShake(true);
       hasShaken.current = true;
       
+      // Play bell sound for warning
+      if (bellSoundRef.current) {
+        bellSoundRef.current.currentTime = 0;
+        bellSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+      }
+      
       // Remove shake class after animation completes
-      setTimeout(() => {
+      const shakeTimeout = setTimeout(() => {
         setShouldShake(false);
       }, 250);
+
+      return () => clearTimeout(shakeTimeout);
     }
   }, [elapsedSeconds, phase, phaseDuration, settings.warningSignalRound, settings.warningSignalBreak, isPaused]);
 
@@ -70,6 +101,20 @@ function App() {
   useEffect(() => {
     hasShaken.current = false;
   }, [phase]);
+
+  // Play box sound when phase changes (round starts/ends)
+  useEffect(() => {
+    // Play box sound only when phase actually changes
+    if (phase !== lastPhaseRef.current && (phase === 'fight' || phase === 'break')) {
+      if (boxSoundRef.current && !isPaused) {
+        boxSoundRef.current.currentTime = 0;
+        boxSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+      }
+    }
+    
+    // Update last phase
+    lastPhaseRef.current = phase;
+  }, [phase, isPaused]);
 
   // Timer effect - use single effect that doesn't depend on phase
   useEffect(() => {
@@ -127,6 +172,7 @@ function App() {
     setElapsedSeconds(0);
     setIsPaused(false);
     hasShaken.current = false;
+    lastPhaseRef.current = 'warmup';
   };
 
   const handlePause = () => {
@@ -139,6 +185,7 @@ function App() {
     setElapsedSeconds(0);
     setIsPaused(true);
     hasShaken.current = false;
+    lastPhaseRef.current = 'warmup';
   };
 
   const handleSettingChange = (key, value) => {
