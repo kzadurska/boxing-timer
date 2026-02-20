@@ -137,7 +137,7 @@ function App() {
   return (
     <div className={`App ${getPhaseClassName()}`}>
       <main className="App-main">
-        <section className="timer-container">
+        <section className={`timer-container ${showSettings ? 'settings-mode' : ''}`}>
           {!showSettings ? (
             <>
               <div>
@@ -212,7 +212,7 @@ function App() {
               </div>
 
               <div className="controls">
-                <button className="btn btn-start" onClick={() => setShowSettings(false)}>
+                <button className="btn btn-done" onClick={() => setShowSettings(false)}>
                   Done
                 </button>
               </div>
