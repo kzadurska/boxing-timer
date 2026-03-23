@@ -10,7 +10,8 @@ function formatTime(seconds) {
 const SETTINGS_KEY = 'boxing-timer-settings';
 
 const DEFAULT_SETTINGS = {
-  numRounds: 2,
+  numSets: 2,
+  roundsPerSet: 3,
   roundDuration: 8,
   breakDuration: 4,
   warningSignalRound: 2,
@@ -22,6 +23,11 @@ function loadSettings() {
     const stored = localStorage.getItem(SETTINGS_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
+      // Migrate old numRounds key to numSets
+      if ('numRounds' in parsed && !('numSets' in parsed)) {
+        parsed.numSets = parsed.numRounds;
+      }
+      delete parsed.numRounds;
       // Merge with defaults to handle any missing keys from future updates
       return { ...DEFAULT_SETTINGS, ...parsed };
     }
@@ -48,6 +54,7 @@ function App() {
 
   // Timer state
   const [phase, setPhase] = useState('warmup'); // 'warmup', 'fight', 'break'
+  const [currentSet, setCurrentSet] = useState(1);
   const [currentRound, setCurrentRound] = useState(1);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isPaused, setIsPaused] = useState(true);
@@ -55,7 +62,9 @@ function App() {
 
   // Ref to track current values for the interval
   const phaseRef = useRef('warmup');
+  const currentSetRef = useRef(1);
   const currentRoundRef = useRef(1);
+  const lastRoundRef = useRef(1);
   const hasShaken = useRef(false);
   const lastPhaseRef = useRef('warmup');
 
@@ -180,6 +189,10 @@ function App() {
   }, [phase]);
 
   useEffect(() => {
+    currentSetRef.current = currentSet;
+  }, [currentSet]);
+
+  useEffect(() => {
     currentRoundRef.current = currentRound;
   }, [currentRound]);  // Calculate duration based on phase
   const getPhaseDuration = () => {
@@ -215,10 +228,10 @@ function App() {
     }
   }, [elapsedSeconds, phase, phaseDuration, settings.warningSignalRound, settings.warningSignalBreak, isPaused]);
 
-  // Reset shake flag when phase changes
+  // Reset shake flag when phase or round changes
   useEffect(() => {
     hasShaken.current = false;
-  }, [phase]);
+  }, [phase, currentRound]);
 
   // Play box sound when phase changes (round starts/ends)
   useEffect(() => {
@@ -232,6 +245,14 @@ function App() {
     // Update last phase
     lastPhaseRef.current = phase;
   }, [phase, isPaused]);
+
+  // Play box sound on round change within the same set (fight -> fight)
+  useEffect(() => {
+    if (currentRound !== lastRoundRef.current && phase === 'fight' && !isPaused) {
+      playSound(boxBufferRef.current);
+    }
+    lastRoundRef.current = currentRound;
+  }, [currentRound, phase, isPaused]);
 
   // Timer effect - use single effect that doesn't depend on phase
   useEffect(() => {
@@ -257,11 +278,17 @@ function App() {
             setPhase('fight');
             return 0;
           } else if (currentPhase === 'fight') {
-            if (currentRoundRef.current < settings.numRounds) {
+            if (currentRoundRef.current < settings.roundsPerSet) {
+              // More rounds in this set -- next round (fight -> fight)
+              setCurrentRound((prev) => prev + 1);
+              return 0;
+            } else if (currentSetRef.current < settings.numSets) {
+              // Set complete, take a break before next set
               setPhase('break');
               return 0;
             } else {
-              // Loop back to warmup after last round
+              // All sets done -- stop
+              setCurrentSet(1);
               setCurrentRound(1);
               setPhase('warmup');
               setIsPaused(true);
@@ -269,7 +296,9 @@ function App() {
               return 0;
             }
           } else if (currentPhase === 'break') {
-            setCurrentRound((prev) => prev + 1);
+            // Break over -- start round 1 of next set
+            setCurrentSet((prev) => prev + 1);
+            setCurrentRound(1);
             setPhase('fight');
             return 0;
           }
@@ -281,7 +310,7 @@ function App() {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPaused, settings.roundDuration, settings.breakDuration, settings.numRounds]);
+  }, [isPaused, settings.roundDuration, settings.breakDuration, settings.numSets, settings.roundsPerSet]);
 
   const handleStart = async () => {
     // Ensure audio is ready on user gesture (critical for mobile/PWA)
@@ -289,11 +318,13 @@ function App() {
     await requestWakeLock();
     setShowSettings(false);
     setPhase('warmup');
+    setCurrentSet(1);
     setCurrentRound(1);
     setElapsedSeconds(0);
     setIsPaused(false);
     hasShaken.current = false;
     lastPhaseRef.current = 'warmup';
+    lastRoundRef.current = 1;
   };
 
   const handlePause = async () => {
@@ -310,11 +341,13 @@ function App() {
 
   const handleReset = () => {
     setPhase('warmup');
+    setCurrentSet(1);
     setCurrentRound(1);
     setElapsedSeconds(0);
     setIsPaused(true);
     hasShaken.current = false;
     lastPhaseRef.current = 'warmup';
+    lastRoundRef.current = 1;
     releaseWakeLock();
   };
 
@@ -350,7 +383,8 @@ function App() {
   };
 
   const displayTime = formatTime(Math.max(0, Math.floor(phaseDuration - elapsedSeconds)));
-  const displayRound = `Round ${currentRound}/${settings.numRounds}`;
+  const displaySet = `Set ${currentSet}/${settings.numSets}`;
+  const displayRound = `Round ${currentRound}/${settings.roundsPerSet}`;
   const displayPhase = phase === 'warmup' ? 'Warm-up' : phase === 'fight' ? 'Fight' : phase === 'break' ? 'Break' : 'Ready';
 
   // Check if settings have validation errors
@@ -361,7 +395,8 @@ function App() {
     settings.warningSignalBreak === '' ||
     settings.roundDuration === '' ||
     settings.breakDuration === '' ||
-    settings.numRounds === '';
+    settings.numSets === '' ||
+    settings.roundsPerSet === '';
 
   const getPhaseClassName = () => {
     if (phase === 'warmup') return 'phase-warmup';
@@ -377,7 +412,7 @@ function App() {
           {!showSettings ? (
             <>
               <div>
-                <div className="timer-round">{displayRound}</div>
+                <div className="timer-round">{displaySet} &middot; {displayRound}</div>
                 <div className="timer-time">{displayTime}</div>
                 <div className="timer-phase">{displayPhase}</div>
               </div>
@@ -387,14 +422,26 @@ function App() {
               <h2 className="settings-title">Settings</h2>
               <div className="settings-grid">
                 <div className="setting-input">
-                  <label htmlFor="numRounds">Number of Rounds</label>
+                  <label htmlFor="numSets">Number of Sets</label>
                   <input
-                    id="numRounds"
+                    id="numSets"
                     type="number"
                     min="1"
                     max="99"
-                    value={settings.numRounds}
-                    onChange={(e) => handleSettingChange('numRounds', e.target.value)}
+                    value={settings.numSets}
+                    onChange={(e) => handleSettingChange('numSets', e.target.value)}
+                  />
+                </div>
+
+                <div className="setting-input">
+                  <label htmlFor="roundsPerSet">Rounds per Set</label>
+                  <input
+                    id="roundsPerSet"
+                    type="number"
+                    min="1"
+                    max="99"
+                    value={settings.roundsPerSet}
+                    onChange={(e) => handleSettingChange('roundsPerSet', e.target.value)}
                   />
                 </div>
 
@@ -471,7 +518,11 @@ function App() {
             <div className="info-grid">
               <div className="info-item">
                 <div className="info-label">Sets</div>
-                <div className="info-value">{settings.numRounds}</div>
+                <div className="info-value">{settings.numSets}</div>
+              </div>
+              <div className="info-item">
+                <div className="info-label">Rounds</div>
+                <div className="info-value">{settings.roundsPerSet}</div>
               </div>
               <div className="info-item">
                 <div className="info-label">Fight</div>
