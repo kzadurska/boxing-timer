@@ -32,24 +32,72 @@ function App() {
   const hasShaken = useRef(false);
   const lastPhaseRef = useRef('warmup');
 
-  // Audio refs
-  const boxSoundRef = useRef(null);
-  const bellSoundRef = useRef(null);
+  // Audio refs - Web Audio API for reliable mobile playback
+  const audioContextRef = useRef(null);
+  const boxBufferRef = useRef(null);
+  const bellBufferRef = useRef(null);
+  const audioUnlockedRef = useRef(false);
 
-  // Initialize audio on mount
+  // Fetch and decode an audio file into an AudioBuffer
+  const loadAudioBuffer = async (url) => {
+    const response = await fetch(url);
+    const arrayBuffer = await response.arrayBuffer();
+    return audioContextRef.current.decodeAudioData(arrayBuffer);
+  };
+
+  // Play an AudioBuffer using Web Audio API
+  const playSound = (buffer) => {
+    if (!audioContextRef.current || !buffer) return;
+    // Resume context if it was suspended (mobile requirement)
+    if (audioContextRef.current.state === 'suspended') {
+      audioContextRef.current.resume();
+    }
+    const source = audioContextRef.current.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioContextRef.current.destination);
+    source.start(0);
+  };
+
+  // Unlock audio on first user interaction - must be called from a click/tap handler
+  const unlockAudio = async () => {
+    if (audioUnlockedRef.current) return;
+    
+    // Create AudioContext on user gesture (required by mobile browsers)
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    audioContextRef.current = new AudioCtx();
+
+    // Resume in case it starts suspended
+    if (audioContextRef.current.state === 'suspended') {
+      await audioContextRef.current.resume();
+    }
+
+    // Play a tiny silent buffer to fully unlock audio on iOS
+    const silentBuffer = audioContextRef.current.createBuffer(1, 1, 22050);
+    const silentSource = audioContextRef.current.createBufferSource();
+    silentSource.buffer = silentBuffer;
+    silentSource.connect(audioContextRef.current.destination);
+    silentSource.start(0);
+
+    // Load the actual sound files
+    try {
+      const [boxBuffer, bellBuffer] = await Promise.all([
+        loadAudioBuffer('/box.mp3'),
+        loadAudioBuffer('/single-bell.mp3'),
+      ]);
+      boxBufferRef.current = boxBuffer;
+      bellBufferRef.current = bellBuffer;
+    } catch (err) {
+      console.error('Failed to load audio buffers:', err);
+    }
+
+    audioUnlockedRef.current = true;
+  };
+
+  // Cleanup audio context on unmount
   useEffect(() => {
-    boxSoundRef.current = new Audio('/box.mp3');
-    bellSoundRef.current = new Audio('/single-bell.mp3');
-
     return () => {
-      // Cleanup audio on unmount
-      if (boxSoundRef.current) {
-        boxSoundRef.current.pause();
-        boxSoundRef.current = null;
-      }
-      if (bellSoundRef.current) {
-        bellSoundRef.current.pause();
-        bellSoundRef.current = null;
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
       }
     };
   }, []);
@@ -83,10 +131,7 @@ function App() {
       hasShaken.current = true;
       
       // Play bell sound for warning
-      if (bellSoundRef.current) {
-        bellSoundRef.current.currentTime = 0;
-        bellSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
-      }
+      playSound(bellBufferRef.current);
       
       // Remove shake class after animation completes
       const shakeTimeout = setTimeout(() => {
@@ -106,9 +151,8 @@ function App() {
   useEffect(() => {
     // Play box sound only when phase actually changes
     if (phase !== lastPhaseRef.current && (phase === 'fight' || phase === 'break')) {
-      if (boxSoundRef.current && !isPaused) {
-        boxSoundRef.current.currentTime = 0;
-        boxSoundRef.current.play().catch(err => console.log('Audio play failed:', err));
+      if (!isPaused) {
+        playSound(boxBufferRef.current);
       }
     }
     
@@ -165,7 +209,9 @@ function App() {
     return () => clearInterval(interval);
   }, [isPaused, settings.roundDuration, settings.breakDuration, settings.numRounds]);
 
-  const handleStart = () => {
+  const handleStart = async () => {
+    // Unlock audio on user gesture (critical for mobile/PWA)
+    await unlockAudio();
     setShowSettings(false);
     setPhase('warmup');
     setCurrentRound(1);
@@ -175,7 +221,11 @@ function App() {
     lastPhaseRef.current = 'warmup';
   };
 
-  const handlePause = () => {
+  const handlePause = async () => {
+    if (isPaused) {
+      // Resuming - ensure audio context is active
+      await unlockAudio();
+    }
     setIsPaused(!isPaused);
   };
 
