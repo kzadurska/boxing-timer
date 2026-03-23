@@ -7,15 +7,42 @@ function formatTime(seconds) {
   return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 }
 
+const SETTINGS_KEY = 'boxing-timer-settings';
+
+const DEFAULT_SETTINGS = {
+  numRounds: 2,
+  roundDuration: 8,
+  breakDuration: 4,
+  warningSignalRound: 2,
+  warningSignalBreak: 2,
+};
+
+function loadSettings() {
+  try {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Merge with defaults to handle any missing keys from future updates
+      return { ...DEFAULT_SETTINGS, ...parsed };
+    }
+  } catch (err) {
+    // Corrupted data or storage unavailable -- fall back to defaults
+  }
+  return DEFAULT_SETTINGS;
+}
+
 function App() {
-  // Settings state
-  const [settings, setSettings] = useState({
-    numRounds: 2,
-    roundDuration: 8,
-    breakDuration: 4,
-    warningSignalRound: 2,
-    warningSignalBreak: 2,
-  });
+  // Settings state - loaded from localStorage
+  const [settings, setSettings] = useState(loadSettings);
+
+  // Persist settings to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch (err) {
+      // Storage full or unavailable -- ignore
+    }
+  }, [settings]);
 
   const [showSettings, setShowSettings] = useState(false);
 
@@ -167,18 +194,18 @@ function App() {
   // Check for warning signal and trigger shake animation
   useEffect(() => {
     const timeRemaining = phaseDuration - elapsedSeconds;
-    const warningTime = phase === 'fight' ? settings.warningSignalRound : 
-                        phase === 'break' ? settings.warningSignalBreak : 
+    const warningTime = phase === 'fight' ? settings.warningSignalRound :
+                        phase === 'break' ? settings.warningSignalBreak :
                         0;
 
     // Trigger shake when we hit the warning time (not before or after)
     if (timeRemaining === warningTime && warningTime > 0 && !hasShaken.current && !isPaused) {
       setShouldShake(true);
       hasShaken.current = true;
-      
+
       // Play bell sound for warning
       playSound(bellBufferRef.current);
-      
+
       // Remove shake class after animation completes
       const shakeTimeout = setTimeout(() => {
         setShouldShake(false);
@@ -201,7 +228,7 @@ function App() {
         playSound(boxBufferRef.current);
       }
     }
-    
+
     // Update last phase
     lastPhaseRef.current = phase;
   }, [phase, isPaused]);
@@ -327,7 +354,7 @@ function App() {
   const displayPhase = phase === 'warmup' ? 'Warm-up' : phase === 'fight' ? 'Fight' : phase === 'break' ? 'Break' : 'Ready';
 
   // Check if settings have validation errors
-  const hasValidationErrors = 
+  const hasValidationErrors =
     settings.warningSignalRound >= settings.roundDuration ||
     settings.warningSignalBreak >= settings.breakDuration ||
     settings.warningSignalRound === '' ||
@@ -427,8 +454,8 @@ function App() {
               </div>
 
               <div className="controls">
-                <button 
-                  className="btn btn-done" 
+                <button
+                  className="btn btn-done"
                   onClick={() => setShowSettings(false)}
                   disabled={hasValidationErrors}
                 >
