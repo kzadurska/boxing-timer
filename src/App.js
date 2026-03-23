@@ -32,6 +32,9 @@ function App() {
   const hasShaken = useRef(false);
   const lastPhaseRef = useRef('warmup');
 
+  // Screen Wake Lock ref
+  const wakeLockRef = useRef(null);
+
   // Audio refs - Web Audio API for reliable mobile playback
   const audioContextRef = useRef(null);
   const boxBufferRef = useRef(null);
@@ -95,11 +98,43 @@ function App() {
     }
   };
 
-  // Re-resume AudioContext when PWA returns from background
+  // Screen Wake Lock - prevent screen from going dark while timer is running
+  const requestWakeLock = async () => {
+    if (!('wakeLock' in navigator)) return;
+    try {
+      wakeLockRef.current = await navigator.wakeLock.request('screen');
+    } catch (err) {
+      console.log('Wake Lock request failed:', err);
+    }
+  };
+
+  const releaseWakeLock = async () => {
+    if (wakeLockRef.current) {
+      try {
+        await wakeLockRef.current.release();
+      } catch (err) {
+        // Already released
+      }
+      wakeLockRef.current = null;
+    }
+  };
+
+  // Re-resume AudioContext and re-acquire wake lock when PWA returns from background.
+  // Browsers automatically release the wake lock when the page becomes hidden,
+  // so we must re-acquire it when the page becomes visible again.
+  const isPausedRef = useRef(isPaused);
+  isPausedRef.current = isPaused;
+
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && audioContextRef.current) {
-        audioContextRef.current.resume().catch(() => {});
+      if (document.visibilityState === 'visible') {
+        if (audioContextRef.current) {
+          audioContextRef.current.resume().catch(() => {});
+        }
+        // Re-acquire wake lock if timer is still running
+        if (!isPausedRef.current) {
+          requestWakeLock();
+        }
       }
     };
 
@@ -109,6 +144,7 @@ function App() {
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
+      releaseWakeLock();
     };
   }, []);
 
@@ -202,6 +238,7 @@ function App() {
               setCurrentRound(1);
               setPhase('warmup');
               setIsPaused(true);
+              releaseWakeLock();
               return 0;
             }
           } else if (currentPhase === 'break') {
@@ -222,6 +259,7 @@ function App() {
   const handleStart = async () => {
     // Ensure audio is ready on user gesture (critical for mobile/PWA)
     await ensureAudioContext();
+    await requestWakeLock();
     setShowSettings(false);
     setPhase('warmup');
     setCurrentRound(1);
@@ -233,8 +271,12 @@ function App() {
 
   const handlePause = async () => {
     if (isPaused) {
-      // Resuming - ensure audio context is active
+      // Resuming - ensure audio context is active and keep screen on
       await ensureAudioContext();
+      await requestWakeLock();
+    } else {
+      // Pausing - allow screen to sleep
+      await releaseWakeLock();
     }
     setIsPaused(!isPaused);
   };
@@ -246,6 +288,7 @@ function App() {
     setIsPaused(true);
     hasShaken.current = false;
     lastPhaseRef.current = 'warmup';
+    releaseWakeLock();
   };
 
   const handleSettingChange = (key, value) => {
