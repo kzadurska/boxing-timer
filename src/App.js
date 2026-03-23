@@ -58,44 +58,54 @@ function App() {
     source.start(0);
   };
 
-  // Unlock audio on first user interaction - must be called from a click/tap handler
-  const unlockAudio = async () => {
-    if (audioUnlockedRef.current) return;
-    
-    // Create AudioContext on user gesture (required by mobile browsers)
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    audioContextRef.current = new AudioCtx();
+  // Ensure AudioContext is created and resumed - call from every user tap handler.
+  // iOS standalone PWA suspends the context aggressively (background, screen lock, etc.)
+  // so we must re-resume it on every user gesture, not just the first.
+  const ensureAudioContext = async () => {
+    // First time: create the context + load buffers
+    if (!audioUnlockedRef.current) {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      audioContextRef.current = new AudioCtx();
 
-    // Resume in case it starts suspended
-    if (audioContextRef.current.state === 'suspended') {
+      // Play a silent buffer to fully unlock audio on iOS
+      const silentBuffer = audioContextRef.current.createBuffer(1, 1, 22050);
+      const silentSource = audioContextRef.current.createBufferSource();
+      silentSource.buffer = silentBuffer;
+      silentSource.connect(audioContextRef.current.destination);
+      silentSource.start(0);
+
+      // Load the actual sound files
+      try {
+        const [boxBuffer, bellBuffer] = await Promise.all([
+          loadAudioBuffer('/box.mp3'),
+          loadAudioBuffer('/single-bell.mp3'),
+        ]);
+        boxBufferRef.current = boxBuffer;
+        bellBufferRef.current = bellBuffer;
+      } catch (err) {
+        console.error('Failed to load audio buffers:', err);
+      }
+
+      audioUnlockedRef.current = true;
+    }
+
+    // Always resume on user gesture -- handles iOS PWA suspending the context
+    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
       await audioContextRef.current.resume();
     }
-
-    // Play a tiny silent buffer to fully unlock audio on iOS
-    const silentBuffer = audioContextRef.current.createBuffer(1, 1, 22050);
-    const silentSource = audioContextRef.current.createBufferSource();
-    silentSource.buffer = silentBuffer;
-    silentSource.connect(audioContextRef.current.destination);
-    silentSource.start(0);
-
-    // Load the actual sound files
-    try {
-      const [boxBuffer, bellBuffer] = await Promise.all([
-        loadAudioBuffer('/box.mp3'),
-        loadAudioBuffer('/single-bell.mp3'),
-      ]);
-      boxBufferRef.current = boxBuffer;
-      bellBufferRef.current = bellBuffer;
-    } catch (err) {
-      console.error('Failed to load audio buffers:', err);
-    }
-
-    audioUnlockedRef.current = true;
   };
 
-  // Cleanup audio context on unmount
+  // Re-resume AudioContext when PWA returns from background
   useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && audioContextRef.current) {
+        audioContextRef.current.resume().catch(() => {});
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       if (audioContextRef.current) {
         audioContextRef.current.close();
       }
@@ -210,8 +220,8 @@ function App() {
   }, [isPaused, settings.roundDuration, settings.breakDuration, settings.numRounds]);
 
   const handleStart = async () => {
-    // Unlock audio on user gesture (critical for mobile/PWA)
-    await unlockAudio();
+    // Ensure audio is ready on user gesture (critical for mobile/PWA)
+    await ensureAudioContext();
     setShowSettings(false);
     setPhase('warmup');
     setCurrentRound(1);
@@ -224,7 +234,7 @@ function App() {
   const handlePause = async () => {
     if (isPaused) {
       // Resuming - ensure audio context is active
-      await unlockAudio();
+      await ensureAudioContext();
     }
     setIsPaused(!isPaused);
   };
