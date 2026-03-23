@@ -95,7 +95,7 @@
 
 .info-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 1rem;
   text-align: center;
 }
@@ -307,6 +307,10 @@
 
 /* Responsive design */
 @media (min-width: 768px) {
+  .App-main {
+    max-width: 560px;
+  }
+
   .timer-container {
     padding: 2.5rem;
   }
@@ -317,6 +321,10 @@
 
   .info-card {
     padding: 2.5rem;
+  }
+
+  .info-grid {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
   }
 
   .settings-title {
