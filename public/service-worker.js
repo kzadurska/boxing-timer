@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-globals */
 
-const CACHE_NAME = 'boxing-timer-v2';
+const CACHE_NAME = 'boxing-timer-v3';
 const urlsToCache = [
   '/',
   '/index.html',

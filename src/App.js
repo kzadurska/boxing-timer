@@ -10,12 +10,12 @@ function formatTime(seconds) {
 const SETTINGS_KEY = 'boxing-timer-settings';
 
 const DEFAULT_SETTINGS = {
-  numSets: 2,
-  roundsPerSet: 3,
-  roundDuration: 8,
-  breakDuration: 4,
-  warningSignalRound: 2,
-  warningSignalBreak: 2,
+  numSets: 10,
+  roundsPerSet: 1,
+  roundDuration: 60,
+  breakDuration: 10,
+  warningSignalRound: 10,
+  warningSignalBreak: 3,
 };
 
 function loadSettings() {
